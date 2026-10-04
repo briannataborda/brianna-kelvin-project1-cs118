@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -92,6 +93,21 @@ func (s Server) Connect(_ context.Context, r *Registration) (*AuthToken, error) 
 // (when you initially receive it, it will have the name of the recipient instead).
 // TODO: Implement `Send`. If any errors occur, return any error message you'd like.
 func (s Server) Send(ctx context.Context, msg *ChatMessage) (*Success, error) {
+	//gets sender from authenitcation
+	user := fmt.Sprintf("%v", ctx.Value("username"))
+
+	//get's recipient's inbox
+	inbox, ok := s.Inboxes[msg.User]
+	//if recipient does not have an inbox
+	if !ok {
+		return nil, errors.New("Recipient does not have an inbox")
+	}
+	
+	//change user to be sender
+	msg.User = user
+	//send message into inbox
+	inbox <- msg
+	return &Success{Ok: true}, nil
 }
 
 // Implementation of the Fetch method defined in our `.proto` file.
