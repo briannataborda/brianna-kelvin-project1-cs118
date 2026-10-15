@@ -102,7 +102,7 @@ func (s Server) Send(ctx context.Context, msg *ChatMessage) (*Success, error) {
 	if !ok {
 		return nil, errors.New("Recipient does not have an inbox")
 	}
-	
+
 	//change user to be sender
 	msg.User = user
 	//send message into inbox
@@ -118,6 +118,31 @@ func (s Server) Send(ctx context.Context, msg *ChatMessage) (*Success, error) {
 //
 // TODO: Implement Fetch. If any errors occur, return any error message you'd like.
 func (s Server) Fetch(ctx context.Context, _ *Empty) (*ChatMessages, error) {
+	// get current user name
+	user := fmt.Sprintf("%v", ctx.Value("username"))
+	// get the user's inbox channel to read from
+	inbox, ok := s.Inboxes[user]
+	if !ok {
+		return nil, errors.New("user has no inbox")
+	}
+
+	mesages := []*ChatMessage{}
+	// collect up to the batch size per fetch
+	for len(mesages) < BATCH_SIZE {
+		select {
+		// case where the inbox channel is closed so just return current message
+		case m, ok := <-inbox:
+			if !ok {
+				return &ChatMessages{ChatMessages: mesages}, nil
+			}
+			mesages = append(mesages, m)
+
+		// case where the inbox channel is empty
+		default:
+			return &ChatMessages{ChatMessages: mesages}, nil
+		}
+	}
+	return &ChatMessages{ChatMessages: mesages}, nil
 }
 
 // Implementation of the List method defined in our `.proto` file.
